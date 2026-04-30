@@ -8,6 +8,11 @@ const port = process.env.PORT || 8050;
 const imagesDirectory = path.join(__dirname, "imagens");
 const allowedExtensions = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 
+function extractLeadingNumber(fileName) {
+  const match = fileName.match(/^(\d+)/);
+  return match ? Number.parseInt(match[1], 10) : Number.NEGATIVE_INFINITY;
+}
+
 app.use("/imagens", express.static(imagesDirectory));
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -18,7 +23,16 @@ app.get("/api/cartazes", async (_req, res) => {
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
       .filter((fileName) => allowedExtensions.has(path.extname(fileName).toLowerCase()))
-      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .sort((a, b) => {
+        const numberA = extractLeadingNumber(a);
+        const numberB = extractLeadingNumber(b);
+
+        if (numberA !== numberB) {
+          return numberB - numberA;
+        }
+
+        return b.localeCompare(a, "pt-BR");
+      })
       .map((fileName) => ({
         name: fileName,
         src: `/imagens/${encodeURIComponent(fileName)}`
