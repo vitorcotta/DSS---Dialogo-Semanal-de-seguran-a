@@ -1,5 +1,9 @@
 const gallery = document.getElementById("gallery");
 const refreshButton = document.getElementById("refreshButton");
+const lightbox = document.getElementById("lightbox");
+const lightboxClose = document.getElementById("lightboxClose");
+const lightboxImage = document.getElementById("lightboxImage");
+const lightboxTitle = document.getElementById("lightboxTitle");
 
 function sanitizeTitle(fileName) {
   return fileName.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]/g, " ");
@@ -19,7 +23,9 @@ function renderPosters(posters) {
     .map(
       (poster) => `
       <article class="card">
-        <img src="${poster.src}" alt="Cartaz DSS: ${sanitizeTitle(poster.name)}" loading="lazy" />
+        <button class="card__preview" type="button" data-src="${poster.src}" data-title="${sanitizeTitle(poster.name)}" aria-label="Ampliar cartaz ${sanitizeTitle(poster.name)}">
+          <img src="${poster.src}" alt="Cartaz DSS: ${sanitizeTitle(poster.name)}" loading="lazy" />
+        </button>
         <p class="card__title">${sanitizeTitle(poster.name)}</p>
       </article>
     `
@@ -27,6 +33,21 @@ function renderPosters(posters) {
     .join("");
 
   gallery.innerHTML = cards;
+}
+
+function openLightbox(src, title) {
+  lightboxImage.src = src;
+  lightboxImage.alt = `Cartaz ampliado: ${title}`;
+  lightboxTitle.textContent = title;
+  lightbox.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeLightbox() {
+  lightbox.hidden = true;
+  lightboxImage.src = "";
+  lightboxTitle.textContent = "";
+  document.body.style.overflow = "";
 }
 
 async function loadPosters() {
@@ -46,6 +67,24 @@ async function loadPosters() {
 }
 
 refreshButton.addEventListener("click", loadPosters);
+gallery.addEventListener("click", (event) => {
+  const button = event.target.closest(".card__preview");
+  if (!button) {
+    return;
+  }
 
-setInterval(loadPosters, 15000);
+  openLightbox(button.dataset.src, button.dataset.title);
+});
+lightboxClose.addEventListener("click", closeLightbox);
+lightbox.addEventListener("click", (event) => {
+  if (event.target === lightbox) {
+    closeLightbox();
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !lightbox.hidden) {
+    closeLightbox();
+  }
+});
+
 loadPosters();
