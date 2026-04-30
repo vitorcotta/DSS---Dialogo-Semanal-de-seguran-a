@@ -39,7 +39,7 @@ docker compose up --build -d
 Acesse:
 
 ```text
-http://SEU_IP_OU_HOST:5050
+http://SEU_IP_OU_HOST:8050
 ```
 
 Para acompanhar logs:
@@ -99,7 +99,7 @@ docker compose up --build -d
 ### 4) Liberar porta no firewall (se necessario)
 
 ```bash
-sudo firewall-cmd --permanent --add-port=5050/tcp
+sudo firewall-cmd --permanent --add-port=8050/tcp
 sudo firewall-cmd --reload
 ```
 
