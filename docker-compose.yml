@@ -5,7 +5,7 @@ services:
     build: .
     container_name: dss-cartazes
     ports:
-      - "3000:3000"
+      - "5050:5050"
     volumes:
       - ./imagens:/app/imagens
     restart: unless-stopped

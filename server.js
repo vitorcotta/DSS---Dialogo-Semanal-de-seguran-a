@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5050;
 
 const imagesDirectory = path.join(__dirname, "imagens");
 const allowedExtensions = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
