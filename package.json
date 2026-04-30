@@ -1,0 +1,19 @@
+{
+  "name": "dss-cartazes",
+  "version": "1.0.0",
+  "description": "Painel corporativo para exibir cartazes do dialogo semanal de seguranca",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "dss",
+    "seguranca",
+    "cartazes"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

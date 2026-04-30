@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  dss-cartazes:
+    build: .
+    container_name: dss-cartazes
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./imagens:/app/imagens
+    restart: unless-stopped
