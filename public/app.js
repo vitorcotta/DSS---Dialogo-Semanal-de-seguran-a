@@ -4,6 +4,8 @@ const lightbox = document.getElementById("lightbox");
 const lightboxClose = document.getElementById("lightboxClose");
 const lightboxImage = document.getElementById("lightboxImage");
 const lightboxTitle = document.getElementById("lightboxTitle");
+const lightboxZoomLevels = [1, 1.5, 2];
+let lightboxZoomIndex = 0;
 
 function sanitizeTitle(fileName) {
   return fileName.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]/g, " ");
@@ -11,6 +13,17 @@ function sanitizeTitle(fileName) {
 
 function renderMessage(text) {
   gallery.innerHTML = `<div class="message">${text}</div>`;
+}
+
+function applyLightboxZoom() {
+  const zoom = lightboxZoomLevels[lightboxZoomIndex];
+  lightboxImage.style.transform = `scale(${zoom})`;
+  lightboxImage.classList.toggle("lightbox__image--zoomed", zoom > 1);
+}
+
+function resetLightboxZoom() {
+  lightboxZoomIndex = 0;
+  applyLightboxZoom();
 }
 
 function renderPosters(posters) {
@@ -38,6 +51,7 @@ function renderPosters(posters) {
 function openLightbox(src, title) {
   lightboxImage.src = src;
   lightboxImage.alt = `Cartaz ampliado: ${title}`;
+  resetLightboxZoom();
   lightboxTitle.textContent = title;
   lightbox.hidden = false;
   document.body.style.overflow = "hidden";
@@ -45,6 +59,7 @@ function openLightbox(src, title) {
 
 function closeLightbox() {
   lightbox.hidden = true;
+  resetLightboxZoom();
   lightboxImage.src = "";
   lightboxTitle.textContent = "";
   document.body.style.overflow = "";
@@ -76,6 +91,11 @@ gallery.addEventListener("click", (event) => {
   openLightbox(button.dataset.src, button.dataset.title);
 });
 lightboxClose.addEventListener("click", closeLightbox);
+lightboxImage.addEventListener("click", (event) => {
+  event.stopPropagation();
+  lightboxZoomIndex = (lightboxZoomIndex + 1) % lightboxZoomLevels.length;
+  applyLightboxZoom();
+});
 lightbox.addEventListener("click", (event) => {
   if (event.target === lightbox) {
     closeLightbox();
