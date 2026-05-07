@@ -2,9 +2,10 @@ const gallery = document.getElementById("gallery");
 const refreshButton = document.getElementById("refreshButton");
 const lightbox = document.getElementById("lightbox");
 const lightboxClose = document.getElementById("lightboxClose");
+const lightboxViewport = document.getElementById("lightboxViewport");
 const lightboxImage = document.getElementById("lightboxImage");
 const lightboxTitle = document.getElementById("lightboxTitle");
-const lightboxZoomLevels = [1, 1.5, 2];
+const lightboxZoomLevels = [1, 1.5, 2, 3];
 let lightboxZoomIndex = 0;
 
 function sanitizeTitle(fileName) {
@@ -15,10 +16,42 @@ function renderMessage(text) {
   gallery.innerHTML = `<div class="message">${text}</div>`;
 }
 
-function applyLightboxZoom() {
+function getFittedImageSize() {
+  const naturalWidth = lightboxImage.naturalWidth || 1;
+  const naturalHeight = lightboxImage.naturalHeight || 1;
+  const maxWidth = Math.min(window.innerWidth * 0.96, 1200);
+  const maxHeight = window.innerHeight * 0.82;
+  const fitScale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1);
+
+  return {
+    width: naturalWidth * fitScale,
+    height: naturalHeight * fitScale
+  };
+}
+
+function applyLightboxZoom(focusPoint = null) {
   const zoom = lightboxZoomLevels[lightboxZoomIndex];
-  lightboxImage.style.transform = `scale(${zoom})`;
+  const prevWidth = lightboxImage.clientWidth || getFittedImageSize().width;
+  const prevHeight = lightboxImage.clientHeight || getFittedImageSize().height;
+  const { width, height } = getFittedImageSize();
+
+  lightboxImage.style.width = `${width * zoom}px`;
+  lightboxImage.style.height = `${height * zoom}px`;
   lightboxImage.classList.toggle("lightbox__image--zoomed", zoom > 1);
+
+  if (focusPoint) {
+    const ratioX = prevWidth ? (lightboxViewport.scrollLeft + focusPoint.x) / prevWidth : 0.5;
+    const ratioY = prevHeight ? (lightboxViewport.scrollTop + focusPoint.y) / prevHeight : 0.5;
+    const targetScrollLeft = ratioX * width * zoom - focusPoint.x;
+    const targetScrollTop = ratioY * height * zoom - focusPoint.y;
+
+    lightboxViewport.scrollTo({
+      left: Math.max(0, targetScrollLeft),
+      top: Math.max(0, targetScrollTop)
+    });
+  } else if (zoom === 1) {
+    lightboxViewport.scrollTo({ left: 0, top: 0 });
+  }
 }
 
 function resetLightboxZoom() {
@@ -51,7 +84,7 @@ function renderPosters(posters) {
 function openLightbox(src, title) {
   lightboxImage.src = src;
   lightboxImage.alt = `Cartaz ampliado: ${title}`;
-  resetLightboxZoom();
+  lightboxImage.onload = () => resetLightboxZoom();
   lightboxTitle.textContent = title;
   lightbox.hidden = false;
   document.body.style.overflow = "hidden";
@@ -60,6 +93,7 @@ function openLightbox(src, title) {
 function closeLightbox() {
   lightbox.hidden = true;
   resetLightboxZoom();
+  lightboxViewport.scrollTo({ left: 0, top: 0 });
   lightboxImage.src = "";
   lightboxTitle.textContent = "";
   document.body.style.overflow = "";
@@ -93,12 +127,22 @@ gallery.addEventListener("click", (event) => {
 lightboxClose.addEventListener("click", closeLightbox);
 lightboxImage.addEventListener("click", (event) => {
   event.stopPropagation();
+  const viewportRect = lightboxViewport.getBoundingClientRect();
+  const focusPoint = {
+    x: event.clientX - viewportRect.left,
+    y: event.clientY - viewportRect.top
+  };
   lightboxZoomIndex = (lightboxZoomIndex + 1) % lightboxZoomLevels.length;
-  applyLightboxZoom();
+  applyLightboxZoom(focusPoint);
 });
 lightbox.addEventListener("click", (event) => {
   if (event.target === lightbox) {
     closeLightbox();
+  }
+});
+window.addEventListener("resize", () => {
+  if (!lightbox.hidden) {
+    applyLightboxZoom();
   }
 });
 document.addEventListener("keydown", (event) => {
