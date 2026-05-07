@@ -157,10 +157,7 @@ body {
   max-width: min(96vw, 1200px);
   max-height: 82vh;
   overflow: auto;
-  border-radius: 10px;
-  border: 1px solid #325272;
-  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.6);
-  background: rgba(0, 0, 0, 0.15);
+  background: transparent;
   cursor: default;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -183,6 +180,9 @@ body {
   width: 100%;
   height: auto;
   display: block;
+  border-radius: 10px;
+  border: 1px solid #325272;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.6);
   cursor: zoom-in;
   transition: width 180ms ease;
 }
