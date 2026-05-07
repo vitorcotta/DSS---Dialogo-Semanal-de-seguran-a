@@ -16,11 +16,34 @@ function renderMessage(text) {
   gallery.innerHTML = `<div class="message">${text}</div>`;
 }
 
+function getFittedImageSize() {
+  const naturalWidth = lightboxImage.naturalWidth || 1;
+  const naturalHeight = lightboxImage.naturalHeight || 1;
+  const maxWidth = Math.min(window.innerWidth * 0.96, 1200);
+  const reservedHeight = lightboxClose.offsetHeight + lightboxTitle.offsetHeight + 48;
+  const maxHeight = Math.min(window.innerHeight * 0.82, window.innerHeight - reservedHeight);
+  const fitScale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1);
+
+  return {
+    width: naturalWidth * fitScale,
+    height: naturalHeight * fitScale
+  };
+}
+
 function applyLightboxZoom() {
   const zoom = lightboxZoomLevels[lightboxZoomIndex];
-  lightboxImage.style.transform = `scale(${zoom})`;
+  const { width, height } = getFittedImageSize();
+
+  lightboxViewport.style.width = `${width}px`;
+  lightboxViewport.style.height = `${height}px`;
+  lightboxImage.style.width = `${width * zoom}px`;
+  lightboxImage.style.height = `${height * zoom}px`;
   lightboxImage.classList.toggle("lightbox__image--zoomed", zoom > 1);
   lightboxViewport.classList.toggle("lightbox__viewport--zoomed", zoom > 1);
+
+  if (zoom === 1) {
+    lightboxViewport.scrollTo({ left: 0, top: 0 });
+  }
 }
 
 function resetLightboxZoom() {
@@ -62,6 +85,7 @@ function openLightbox(src, title) {
 function closeLightbox() {
   lightbox.hidden = true;
   resetLightboxZoom();
+  lightboxViewport.scrollTo({ left: 0, top: 0 });
   lightboxImage.src = "";
   lightboxTitle.textContent = "";
   document.body.style.overflow = "";
@@ -101,6 +125,11 @@ lightboxImage.addEventListener("click", (event) => {
 lightbox.addEventListener("click", (event) => {
   if (event.target === lightbox) {
     closeLightbox();
+  }
+});
+window.addEventListener("resize", () => {
+  if (!lightbox.hidden) {
+    applyLightboxZoom();
   }
 });
 document.addEventListener("keydown", (event) => {
