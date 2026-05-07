@@ -7,6 +7,13 @@ const lightboxImage = document.getElementById("lightboxImage");
 const lightboxTitle = document.getElementById("lightboxTitle");
 const lightboxZoomLevels = [1, 1.5, 2, 3];
 let lightboxZoomIndex = 0;
+const dragState = {
+  active: false,
+  startX: 0,
+  startY: 0,
+  startScrollLeft: 0,
+  startScrollTop: 0
+};
 
 function sanitizeTitle(fileName) {
   return fileName.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]/g, " ");
@@ -34,10 +41,15 @@ function applyLightboxZoom(focusPoint = null) {
   const prevWidth = lightboxImage.clientWidth || getFittedImageSize().width;
   const prevHeight = lightboxImage.clientHeight || getFittedImageSize().height;
   const { width, height } = getFittedImageSize();
+  const viewportWidth = Math.min(width, Math.min(window.innerWidth * 0.96, 1200));
+  const viewportHeight = Math.min(height, window.innerHeight * 0.82);
 
+  lightboxViewport.style.width = `${viewportWidth}px`;
+  lightboxViewport.style.height = `${viewportHeight}px`;
   lightboxImage.style.width = `${width * zoom}px`;
   lightboxImage.style.height = `${height * zoom}px`;
   lightboxImage.classList.toggle("lightbox__image--zoomed", zoom > 1);
+  lightboxViewport.classList.toggle("lightbox__viewport--zoomed", zoom > 1);
 
   if (focusPoint) {
     const ratioX = prevWidth ? (lightboxViewport.scrollLeft + focusPoint.x) / prevWidth : 0.5;
@@ -94,6 +106,8 @@ function closeLightbox() {
   lightbox.hidden = true;
   resetLightboxZoom();
   lightboxViewport.scrollTo({ left: 0, top: 0 });
+  lightboxViewport.classList.remove("lightbox__viewport--dragging");
+  dragState.active = false;
   lightboxImage.src = "";
   lightboxTitle.textContent = "";
   document.body.style.overflow = "";
@@ -135,6 +149,43 @@ lightboxImage.addEventListener("click", (event) => {
   lightboxZoomIndex = (lightboxZoomIndex + 1) % lightboxZoomLevels.length;
   applyLightboxZoom(focusPoint);
 });
+lightboxViewport.addEventListener("pointerdown", (event) => {
+  if (lightboxZoomLevels[lightboxZoomIndex] <= 1) {
+    return;
+  }
+
+  dragState.active = true;
+  dragState.startX = event.clientX;
+  dragState.startY = event.clientY;
+  dragState.startScrollLeft = lightboxViewport.scrollLeft;
+  dragState.startScrollTop = lightboxViewport.scrollTop;
+  lightboxViewport.classList.add("lightbox__viewport--dragging");
+  lightboxViewport.setPointerCapture(event.pointerId);
+});
+lightboxViewport.addEventListener("pointermove", (event) => {
+  if (!dragState.active) {
+    return;
+  }
+
+  const deltaX = event.clientX - dragState.startX;
+  const deltaY = event.clientY - dragState.startY;
+  lightboxViewport.scrollLeft = dragState.startScrollLeft - deltaX;
+  lightboxViewport.scrollTop = dragState.startScrollTop - deltaY;
+});
+function stopViewportDrag(event) {
+  if (!dragState.active) {
+    return;
+  }
+
+  dragState.active = false;
+  lightboxViewport.classList.remove("lightbox__viewport--dragging");
+  if (event) {
+    lightboxViewport.releasePointerCapture(event.pointerId);
+  }
+}
+lightboxViewport.addEventListener("pointerup", stopViewportDrag);
+lightboxViewport.addEventListener("pointercancel", stopViewportDrag);
+lightboxViewport.addEventListener("pointerleave", stopViewportDrag);
 lightbox.addEventListener("click", (event) => {
   if (event.target === lightbox) {
     closeLightbox();

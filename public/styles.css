@@ -154,13 +154,29 @@ body {
 }
 
 .lightbox__viewport {
-  width: min(96vw, 1200px);
+  max-width: min(96vw, 1200px);
   max-height: 82vh;
   overflow: auto;
   border-radius: 10px;
   border: 1px solid #325272;
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.6);
   background: rgba(0, 0, 0, 0.15);
+  cursor: default;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.lightbox__viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.lightbox__viewport--zoomed {
+  cursor: grab;
+}
+
+.lightbox__viewport--dragging {
+  cursor: grabbing;
 }
 
 .lightbox__image {
