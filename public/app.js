@@ -27,7 +27,11 @@ function getFittedImageSize() {
   const naturalWidth = lightboxImage.naturalWidth || 1;
   const naturalHeight = lightboxImage.naturalHeight || 1;
   const maxWidth = Math.min(window.innerWidth * 0.96, 1200);
-  const maxHeight = window.innerHeight * 0.82;
+  const reservedHeight =
+    lightboxClose.offsetHeight +
+    lightboxTitle.offsetHeight +
+    48;
+  const maxHeight = Math.min(window.innerHeight * 0.82, window.innerHeight - reservedHeight);
   const fitScale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1);
 
   return {
@@ -42,7 +46,12 @@ function applyLightboxZoom(focusPoint = null) {
   const prevHeight = lightboxImage.clientHeight || getFittedImageSize().height;
   const { width, height } = getFittedImageSize();
   const viewportWidth = Math.min(width, Math.min(window.innerWidth * 0.96, 1200));
-  const viewportHeight = Math.min(height, window.innerHeight * 0.82);
+  const reservedHeight =
+    lightboxClose.offsetHeight +
+    lightboxTitle.offsetHeight +
+    48;
+  const maxViewportHeight = Math.min(window.innerHeight * 0.82, window.innerHeight - reservedHeight);
+  const viewportHeight = Math.min(height, maxViewportHeight);
 
   lightboxViewport.style.width = `${viewportWidth}px`;
   lightboxViewport.style.height = `${viewportHeight}px`;

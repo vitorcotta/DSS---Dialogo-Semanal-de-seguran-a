@@ -189,6 +189,9 @@ body {
 
 .lightbox__image--zoomed {
   cursor: zoom-out;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .lightbox__close {
