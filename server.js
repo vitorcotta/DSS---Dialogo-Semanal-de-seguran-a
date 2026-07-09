@@ -247,6 +247,59 @@ app.post("/api/admin/toggle", requireApiAuth, async (req, res) => {
   res.json({ total: posters.length, posters });
 });
 
+app.post("/api/admin/rename", requireApiAuth, async (req, res) => {
+  const { name, newName } = req.body || {};
+
+  if (typeof name !== "string" || path.basename(name) !== name) {
+    return res.status(400).json({ message: "Nome de arquivo invalido." });
+  }
+  if (typeof newName !== "string" || !newName.trim()) {
+    return res.status(400).json({ message: "Informe o novo nome do arquivo." });
+  }
+
+  const filePath = path.join(imagesDirectory, name);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: "Cartaz nao encontrado." });
+  }
+
+  const originalExt = path.extname(name).toLowerCase();
+  const requestedExt = path.extname(newName).toLowerCase();
+  const hasValidRequestedExt = allowedExtensions.has(requestedExt);
+  const finalExt = hasValidRequestedExt ? requestedExt : originalExt;
+  const baseName = (hasValidRequestedExt ? path.basename(newName, requestedExt) : newName)
+    .normalize("NFC")
+    .replace(/[^a-zA-Z0-9\-_ À-ÿ]/g, "")
+    .trim();
+
+  if (!baseName) {
+    return res.status(400).json({ message: "Nome invalido apos remover caracteres nao suportados." });
+  }
+
+  const finalName = `${baseName}${finalExt}`;
+
+  if (finalName === name) {
+    const posters = await listPosters();
+    return res.json({ total: posters.length, posters });
+  }
+
+  const newPath = path.join(imagesDirectory, finalName);
+  if (fs.existsSync(newPath)) {
+    return res.status(409).json({ message: "Ja existe um cartaz com esse nome." });
+  }
+
+  await fs.promises.rename(filePath, newPath);
+
+  const state = loadState();
+  if (Object.prototype.hasOwnProperty.call(state, name)) {
+    state[finalName] = state[name];
+    delete state[name];
+    saveState(state);
+  }
+
+  const posters = await listPosters();
+  res.json({ total: posters.length, posters });
+});
+
 app.delete("/api/admin/cartazes/:name", requireApiAuth, async (req, res) => {
   const { name } = req.params;
 
