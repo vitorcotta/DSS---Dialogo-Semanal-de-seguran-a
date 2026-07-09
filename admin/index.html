@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DSS - Painel Administrativo</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/admin/admin.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__content admin-header">
+        <div>
+          <p class="hero__tag">Seguranca Operacional</p>
+          <h1>Painel Administrativo</h1>
+          <p class="hero__subtitle">
+            Envie novos cartazes e controle quais aparecem na galeria principal.
+          </p>
+        </div>
+        <button id="logoutButton" type="button" class="admin-logout">Sair</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="admin-upload">
+        <h2>Enviar novos cartazes</h2>
+        <p class="hero__subtitle">
+          Os cartazes enviados ficam <strong>desabilitados</strong> por padrao. Habilite-os quando
+          quiser publica-los na galeria.
+        </p>
+        <form id="uploadForm" class="admin-upload__form">
+          <input id="fileInput" type="file" name="images" accept=".png,.jpg,.jpeg,.webp,.gif" multiple />
+          <button type="submit">Enviar</button>
+        </form>
+        <p id="uploadStatus" class="admin-status"></p>
+      </section>
+
+      <section class="toolbar">
+        <h2>Cartazes cadastrados</h2>
+        <button id="refreshButton" type="button">Atualizar lista</button>
+      </section>
+
+      <section id="adminGallery" class="admin-gallery" aria-live="polite"></section>
+    </main>
+
+    <footer class="footer">
+      <p>Time DSS - Painel administrativo.</p>
+    </footer>
+
+    <script src="/admin/admin.js"></script>
+  </body>
+</html>

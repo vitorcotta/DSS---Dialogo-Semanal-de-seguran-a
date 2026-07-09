@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DSS - Acesso Administrativo</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/login.css" />
+  </head>
+  <body class="login-body">
+    <main class="login-card">
+      <p class="hero__tag">Seguranca Operacional</p>
+      <h1>Painel Administrativo</h1>
+      <p class="hero__subtitle">Entre com usuario e senha para gerenciar os cartazes.</p>
+
+      <form id="loginForm" class="login-form">
+        <label for="username">Usuario</label>
+        <input id="username" name="username" type="text" autocomplete="username" required />
+
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+        <button type="submit">Entrar</button>
+        <p id="loginError" class="login-error" hidden></p>
+      </form>
+
+      <a class="login-back" href="/">Voltar para a galeria</a>
+    </main>
+
+    <script src="/login.js"></script>
+  </body>
+</html>

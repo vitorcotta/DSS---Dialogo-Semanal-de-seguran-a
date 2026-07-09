@@ -4,12 +4,28 @@ Aplicacao web simples para exibir os cartazes do Dialogo Semanal de Seguranca em
 
 ## O que este projeto faz
 
-- Exibe automaticamente todas as imagens da pasta `imagens/`
+- Exibe automaticamente as imagens habilitadas da pasta `imagens/`
 - Atualiza a galeria periodicamente (sem precisar reiniciar a pagina)
 - Mantem todas as imagens com o mesmo tamanho visual
+- Possui um painel administrativo (`/admin`) protegido por usuario e senha, onde e possivel
+  fazer upload de novos cartazes, habilitar/desabilitar cada um (controlando o que aparece
+  na galeria principal) e excluir cartazes
 - Roda em container Docker
 
 Formatos suportados: `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`.
+
+---
+
+## Painel administrativo
+
+Acesse `http://SEU_IP_OU_HOST:8050/login.html` (ou clique em "Administracao" no rodape da
+galeria) para entrar no painel.
+
+- Usuario e senha sao definidos pelas variaveis de ambiente `ADMIN_USERNAME` e `ADMIN_PASSWORD`
+  (veja `docker-compose.yml`). **Troque os valores padrao antes de publicar em producao.**
+- Cartazes enviados pelo painel entram **desabilitados** por padrao — ficam guardados e so
+  aparecem na galeria principal quando voce marcar "Habilitado" na semana de uso.
+- O estado de habilitado/desabilitado de cada cartaz e persistido em `data/state.json`.
 
 ---
 
@@ -20,11 +36,13 @@ Formatos suportados: `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`.
 |-- Dockerfile
 |-- docker-compose.yml
 |-- server.js
+|-- admin/
+|-- data/
 |-- public/
 `-- imagens/
 ```
 
-Coloque seus cartazes dentro da pasta `imagens/`.
+Coloque seus cartazes dentro da pasta `imagens/` (ou envie pelo painel administrativo).
 
 ---
 

@@ -8,4 +8,9 @@ services:
       - "8050:8050"
     volumes:
       - ./imagens:/app/imagens
+      - ./data:/app/data
+    environment:
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=$3nh@F0rt3
+      - SESSION_SECRET=troque-este-segredo
     restart: unless-stopped
