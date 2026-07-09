@@ -42,31 +42,82 @@ function saveState(state) {
   fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
 }
 
-async function listPosters() {
-  const state = loadState();
-  const files = await fs.promises.readdir(imagesDirectory, { withFileTypes: true });
+function legacyCompare(a, b) {
+  const numberA = extractLeadingNumber(a);
+  const numberB = extractLeadingNumber(b);
 
-  return files
+  if (numberA !== numberB) {
+    return numberB - numberA;
+  }
+
+  return b.localeCompare(a, "pt-BR");
+}
+
+// Atribui um numero de ordem explicito (independente do nome do arquivo) para
+// qualquer cartaz que ainda nao tenha um. Cartazes ja existentes antes desta
+// funcionalidade recebem a ordem equivalente a antiga ordenacao por numero no
+// nome, entao a galeria nao muda de posicao na primeira execucao.
+function ensureOrders(state, fileNames) {
+  const existingOrders = fileNames
+    .map((name) => (state[name] && typeof state[name].order === "number" ? state[name].order : null))
+    .filter((value) => value !== null);
+  let nextOrder = existingOrders.length ? Math.max(...existingOrders) + 1 : 0;
+
+  const missing = fileNames.filter((name) => !state[name] || typeof state[name].order !== "number");
+  if (!missing.length) {
+    return false;
+  }
+
+  missing.sort(legacyCompare);
+  missing.forEach((name) => {
+    if (!state[name]) {
+      state[name] = { enabled: true };
+    }
+    if (typeof state[name].enabled !== "boolean") {
+      state[name].enabled = true;
+    }
+    state[name].order = nextOrder;
+    nextOrder += 1;
+  });
+
+  return true;
+}
+
+function toClientPoster({ order, ...poster }) {
+  return poster;
+}
+
+async function listPosters({ forAdmin = false } = {}) {
+  const files = await fs.promises.readdir(imagesDirectory, { withFileTypes: true });
+  const fileNames = files
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name)
-    .filter((fileName) => allowedExtensions.has(path.extname(fileName).toLowerCase()))
-    .sort((a, b) => {
-      const numberA = extractLeadingNumber(a);
-      const numberB = extractLeadingNumber(b);
+    .filter((fileName) => allowedExtensions.has(path.extname(fileName).toLowerCase()));
 
-      if (numberA !== numberB) {
-        return numberB - numberA;
+  const state = loadState();
+  if (ensureOrders(state, fileNames)) {
+    saveState(state);
+  }
+
+  const posters = fileNames.map((fileName) => ({
+    name: fileName,
+    src: `/imagens/${encodeURIComponent(fileName)}`,
+    enabled: state[fileName].enabled !== false,
+    order: state[fileName].order
+  }));
+
+  if (forAdmin) {
+    // No painel, cartazes desabilitados sempre aparecem primeiro (para facilitar
+    // a preparacao/publicacao), ordenados pela ordem manual dentro de cada grupo.
+    return posters.sort((a, b) => {
+      if (a.enabled !== b.enabled) {
+        return a.enabled ? 1 : -1;
       }
+      return a.order - b.order;
+    });
+  }
 
-      return b.localeCompare(a, "pt-BR");
-    })
-    .map((fileName) => ({
-      name: fileName,
-      src: `/imagens/${encodeURIComponent(fileName)}`,
-      // Imagens ja existentes antes deste painel continuam habilitadas por padrao;
-      // novos uploads feitos pelo admin entram desabilitados ate serem publicados.
-      enabled: Object.prototype.hasOwnProperty.call(state, fileName) ? state[fileName].enabled !== false : true
-    }));
+  return posters.filter((poster) => poster.enabled).sort((a, b) => a.order - b.order);
 }
 
 function timingSafeEqual(a, b) {
@@ -176,7 +227,7 @@ app.get("/api/session", (req, res) => {
 
 app.get("/api/cartazes", async (_req, res) => {
   try {
-    const posters = (await listPosters()).filter((poster) => poster.enabled);
+    const posters = (await listPosters()).map(toClientPoster);
     res.json({ total: posters.length, posters });
   } catch (error) {
     res.status(500).json({
@@ -195,7 +246,7 @@ app.use("/admin", requirePageAuth, express.static(path.join(__dirname, "admin"))
 
 app.get("/api/admin/cartazes", requireApiAuth, async (_req, res) => {
   try {
-    const posters = await listPosters();
+    const posters = (await listPosters({ forAdmin: true })).map(toClientPoster);
     res.json({ total: posters.length, posters });
   } catch (error) {
     res.status(500).json({
@@ -222,7 +273,7 @@ app.post("/api/admin/upload", requireApiAuth, (req, res) => {
     });
     saveState(state);
 
-    const posters = await listPosters();
+    const posters = (await listPosters({ forAdmin: true })).map(toClientPoster);
     res.json({ total: posters.length, posters });
   });
 });
@@ -240,11 +291,51 @@ app.post("/api/admin/toggle", requireApiAuth, async (req, res) => {
   }
 
   const state = loadState();
-  state[name] = { enabled: Boolean(enabled) };
+  state[name] = { ...state[name], enabled: Boolean(enabled) };
   saveState(state);
 
-  const posters = await listPosters();
+  const posters = (await listPosters({ forAdmin: true })).map(toClientPoster);
   res.json({ total: posters.length, posters });
+});
+
+app.post("/api/admin/reorder", requireApiAuth, async (req, res) => {
+  const { name, direction } = req.body || {};
+
+  if (typeof name !== "string" || path.basename(name) !== name) {
+    return res.status(400).json({ message: "Nome de arquivo invalido." });
+  }
+  if (direction !== "up" && direction !== "down") {
+    return res.status(400).json({ message: "Direcao invalida." });
+  }
+
+  const filePath = path.join(imagesDirectory, name);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: "Cartaz nao encontrado." });
+  }
+
+  const posters = await listPosters({ forAdmin: true });
+  const target = posters.find((poster) => poster.name === name);
+  if (!target) {
+    return res.status(404).json({ message: "Cartaz nao encontrado." });
+  }
+
+  // Reordena apenas dentro do mesmo grupo (habilitados ou desabilitados), ja
+  // que a lista admin sempre mostra desabilitados primeiro.
+  const group = posters.filter((poster) => poster.enabled === target.enabled);
+  const index = group.findIndex((poster) => poster.name === name);
+  const neighborIndex = direction === "up" ? index - 1 : index + 1;
+  const neighbor = group[neighborIndex];
+
+  if (neighbor) {
+    const state = loadState();
+    const targetOrder = state[name].order;
+    state[name].order = state[neighbor.name].order;
+    state[neighbor.name].order = targetOrder;
+    saveState(state);
+  }
+
+  const updated = (await listPosters({ forAdmin: true })).map(toClientPoster);
+  res.json({ total: updated.length, posters: updated });
 });
 
 app.post("/api/admin/rename", requireApiAuth, async (req, res) => {
@@ -278,7 +369,7 @@ app.post("/api/admin/rename", requireApiAuth, async (req, res) => {
   const finalName = `${baseName}${finalExt}`;
 
   if (finalName === name) {
-    const posters = await listPosters();
+    const posters = (await listPosters({ forAdmin: true })).map(toClientPoster);
     return res.json({ total: posters.length, posters });
   }
 
@@ -296,7 +387,7 @@ app.post("/api/admin/rename", requireApiAuth, async (req, res) => {
     saveState(state);
   }
 
-  const posters = await listPosters();
+  const posters = (await listPosters({ forAdmin: true })).map(toClientPoster);
   res.json({ total: posters.length, posters });
 });
 
@@ -318,7 +409,7 @@ app.delete("/api/admin/cartazes/:name", requireApiAuth, async (req, res) => {
   delete state[name];
   saveState(state);
 
-  const posters = await listPosters();
+  const posters = (await listPosters({ forAdmin: true })).map(toClientPoster);
   res.json({ total: posters.length, posters });
 });
 

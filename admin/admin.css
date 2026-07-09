@@ -95,6 +95,50 @@
   opacity: 0.55;
 }
 
+.admin-group-title {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05rem;
+  color: var(--muted);
+}
+
+.admin-group-title:first-child {
+  margin-top: 0;
+}
+
+.admin-row__reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: none;
+}
+
+.admin-reorder-btn {
+  border: 1px solid var(--card-border);
+  background: #0e1b2c;
+  color: var(--muted);
+  border-radius: 6px;
+  width: 1.6rem;
+  height: 1.3rem;
+  line-height: 1;
+  font-size: 0.65rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-reorder-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--primary);
+}
+
+.admin-reorder-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 .admin-row__thumb {
   width: 56px;
   height: 56px;

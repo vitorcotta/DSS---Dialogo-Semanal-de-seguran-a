@@ -48,60 +48,98 @@ function closeLightbox() {
   document.body.style.overflow = "";
 }
 
+function renderRow(poster, { isFirstInGroup, isLastInGroup }) {
+  const title = sanitizeTitle(poster.name);
+  const isRenaming = renamingName === poster.name;
+
+  const nameArea = isRenaming
+    ? `
+      <form class="admin-rename-form" data-rename-form="${escapeHtml(poster.name)}">
+        <input type="text" value="${escapeHtml(poster.name)}" data-rename-input required />
+        <button type="submit">Salvar</button>
+        <button type="button" class="admin-rename-cancel" data-rename-cancel>Cancelar</button>
+      </form>
+    `
+    : `
+      <div class="admin-row__name">
+        <p class="admin-row__title" data-preview="${poster.src}" data-title="${escapeHtml(title)}" title="Clique para ampliar">
+          ${escapeHtml(poster.name)}
+        </p>
+        <button type="button" class="admin-rename-btn" data-rename-start="${escapeHtml(poster.name)}" title="Renomear">
+          Renomear
+        </button>
+      </div>
+    `;
+
+  return `
+    <article class="admin-row ${poster.enabled ? "" : "admin-row--disabled"}">
+      <div class="admin-row__reorder">
+        <button
+          type="button"
+          class="admin-reorder-btn"
+          data-reorder="up"
+          data-reorder-name="${escapeHtml(poster.name)}"
+          title="Mover para cima"
+          ${isFirstInGroup ? "disabled" : ""}
+        >&#9650;</button>
+        <button
+          type="button"
+          class="admin-reorder-btn"
+          data-reorder="down"
+          data-reorder-name="${escapeHtml(poster.name)}"
+          title="Mover para baixo"
+          ${isLastInGroup ? "disabled" : ""}
+        >&#9660;</button>
+      </div>
+      <img
+        class="admin-row__thumb"
+        src="${poster.src}"
+        alt="Cartaz DSS: ${escapeHtml(title)}"
+        loading="lazy"
+        data-preview="${poster.src}"
+        data-title="${escapeHtml(title)}"
+      />
+      <div class="admin-row__info">${nameArea}</div>
+      <div class="admin-row__actions">
+        <label class="admin-toggle">
+          <input type="checkbox" data-name="${escapeHtml(poster.name)}" ${poster.enabled ? "checked" : ""} />
+          ${poster.enabled ? "Habilitado" : "Desabilitado"}
+        </label>
+        <button type="button" class="admin-delete" data-delete="${escapeHtml(poster.name)}">Excluir</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderPosters(posters) {
   if (!posters.length) {
     renderMessage("Nenhum cartaz cadastrado ainda. Envie o primeiro acima.");
     return;
   }
 
-  const rows = posters
-    .map((poster) => {
-      const title = sanitizeTitle(poster.name);
-      const isRenaming = renamingName === poster.name;
+  const disabled = posters.filter((poster) => !poster.enabled);
+  const enabled = posters.filter((poster) => poster.enabled);
 
-      const nameArea = isRenaming
-        ? `
-          <form class="admin-rename-form" data-rename-form="${escapeHtml(poster.name)}">
-            <input type="text" value="${escapeHtml(poster.name)}" data-rename-input required />
-            <button type="submit">Salvar</button>
-            <button type="button" class="admin-rename-cancel" data-rename-cancel>Cancelar</button>
-          </form>
-        `
-        : `
-          <div class="admin-row__name">
-            <p class="admin-row__title" data-preview="${poster.src}" data-title="${escapeHtml(title)}" title="Clique para ampliar">
-              ${escapeHtml(poster.name)}
-            </p>
-            <button type="button" class="admin-rename-btn" data-rename-start="${escapeHtml(poster.name)}" title="Renomear">
-              Renomear
-            </button>
-          </div>
-        `;
-
-      return `
-        <article class="admin-row ${poster.enabled ? "" : "admin-row--disabled"}">
-          <img
-            class="admin-row__thumb"
-            src="${poster.src}"
-            alt="Cartaz DSS: ${escapeHtml(title)}"
-            loading="lazy"
-            data-preview="${poster.src}"
-            data-title="${escapeHtml(title)}"
-          />
-          <div class="admin-row__info">${nameArea}</div>
-          <div class="admin-row__actions">
-            <label class="admin-toggle">
-              <input type="checkbox" data-name="${escapeHtml(poster.name)}" ${poster.enabled ? "checked" : ""} />
-              ${poster.enabled ? "Habilitado" : "Desabilitado"}
-            </label>
-            <button type="button" class="admin-delete" data-delete="${escapeHtml(poster.name)}">Excluir</button>
-          </div>
-        </article>
-      `;
-    })
+  const disabledRows = disabled
+    .map((poster, index) =>
+      renderRow(poster, { isFirstInGroup: index === 0, isLastInGroup: index === disabled.length - 1 })
+    )
+    .join("");
+  const enabledRows = enabled
+    .map((poster, index) =>
+      renderRow(poster, { isFirstInGroup: index === 0, isLastInGroup: index === enabled.length - 1 })
+    )
     .join("");
 
-  adminGallery.innerHTML = rows;
+  const sections = [];
+  if (disabled.length) {
+    sections.push(`<h3 class="admin-group-title">Desabilitados (${disabled.length})</h3>${disabledRows}`);
+  }
+  if (enabled.length) {
+    sections.push(`<h3 class="admin-group-title">Habilitados (${enabled.length})</h3>${enabledRows}`);
+  }
+
+  adminGallery.innerHTML = sections.join("");
 }
 
 async function loadPosters() {
@@ -261,7 +299,39 @@ async function handleRenameSubmit(event) {
   }
 }
 
+async function handleReorder(button) {
+  const name = button.dataset.reorderName;
+  const direction = button.dataset.reorder;
+
+  try {
+    const response = await fetch("/api/admin/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, direction })
+    });
+
+    if (response.status === 401) {
+      window.location.href = "/login.html";
+      return;
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || "Falha ao reordenar cartaz.");
+    }
+
+    renderPosters(data.posters || []);
+  } catch (error) {
+    setUploadStatus(error.message, "error");
+  }
+}
+
 function handleGalleryClick(event) {
+  const reorderButton = event.target.closest("button[data-reorder]");
+  if (reorderButton) {
+    handleReorder(reorderButton);
+    return;
+  }
+
   const renameStart = event.target.closest("button[data-rename-start]");
   if (renameStart) {
     renamingName = renameStart.dataset.renameStart;
