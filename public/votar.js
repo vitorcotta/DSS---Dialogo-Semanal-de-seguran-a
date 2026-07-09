@@ -3,12 +3,73 @@ const votarMessage = document.getElementById("votarMessage");
 const votarOptions = document.getElementById("votarOptions");
 const votarSubmit = document.getElementById("votarSubmit");
 
+const lightbox = document.getElementById("lightbox");
+const lightboxClose = document.getElementById("lightboxClose");
+const lightboxViewport = document.getElementById("lightboxViewport");
+const lightboxImage = document.getElementById("lightboxImage");
+const lightboxTitle = document.getElementById("lightboxTitle");
+const lightboxZoomLevels = [1, 1.5, 2, 3];
+let lightboxZoomIndex = 0;
+
 const pollId = window.location.pathname.split("/").filter(Boolean).pop();
 
 let selectedName = null;
 
 function sanitizeTitle(fileName) {
   return fileName.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]/g, " ");
+}
+
+function getFittedImageSize() {
+  const naturalWidth = lightboxImage.naturalWidth || 1;
+  const naturalHeight = lightboxImage.naturalHeight || 1;
+  const maxWidth = Math.min(window.innerWidth * 0.96, 1200);
+  const reservedHeight = lightboxClose.offsetHeight + lightboxTitle.offsetHeight + 48;
+  const maxHeight = Math.min(window.innerHeight * 0.82, window.innerHeight - reservedHeight);
+  const fitScale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1);
+
+  return {
+    width: naturalWidth * fitScale,
+    height: naturalHeight * fitScale
+  };
+}
+
+function applyLightboxZoom() {
+  const zoom = lightboxZoomLevels[lightboxZoomIndex];
+  const { width, height } = getFittedImageSize();
+
+  lightboxViewport.style.width = `${width}px`;
+  lightboxViewport.style.height = `${height}px`;
+  lightboxImage.style.width = `${width * zoom}px`;
+  lightboxImage.style.height = `${height * zoom}px`;
+  lightboxImage.classList.toggle("lightbox__image--zoomed", zoom > 1);
+  lightboxViewport.classList.toggle("lightbox__viewport--zoomed", zoom > 1);
+
+  if (zoom === 1) {
+    lightboxViewport.scrollTo({ left: 0, top: 0 });
+  }
+}
+
+function resetLightboxZoom() {
+  lightboxZoomIndex = 0;
+  applyLightboxZoom();
+}
+
+function openLightbox(src, title) {
+  lightboxImage.src = src;
+  lightboxImage.alt = `Cartaz ampliado: ${title}`;
+  lightboxImage.onload = () => resetLightboxZoom();
+  lightboxTitle.textContent = title;
+  lightbox.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeLightbox() {
+  lightbox.hidden = true;
+  resetLightboxZoom();
+  lightboxViewport.scrollTo({ left: 0, top: 0 });
+  lightboxImage.src = "";
+  lightboxTitle.textContent = "";
+  document.body.style.overflow = "";
 }
 
 function renderResults(poll) {
@@ -21,8 +82,12 @@ function renderResults(poll) {
       const pct = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
       const isWinner = poll.winner === candidate.name;
       const thumb = candidate.missing
-        ? ""
-        : `<img src="${candidate.src}" alt="Cartaz DSS: ${title}" />`;
+        ? `<div class="votar-option__thumb votar-option__thumb--missing"></div>`
+        : `
+          <button type="button" class="votar-option__preview" data-preview="${candidate.src}" data-title="${title}" title="Ampliar cartaz">
+            <img src="${candidate.src}" alt="Cartaz DSS: ${title}" />
+          </button>
+        `;
 
       return `
         <div class="votar-option">
@@ -45,35 +110,46 @@ function renderVotingOptions(poll) {
     .map((candidate) => {
       const title = candidate.missing ? "Cartaz removido" : sanitizeTitle(candidate.name);
       const thumb = candidate.missing
-        ? ""
-        : `<img src="${candidate.src}" alt="Cartaz DSS: ${title}" />`;
+        ? `<div class="votar-option__thumb votar-option__thumb--missing"></div>`
+        : `
+          <button type="button" class="votar-option__preview" data-preview="${candidate.src}" data-title="${title}" title="Ver em tela cheia">
+            <img src="${candidate.src}" alt="Cartaz DSS: ${title}" />
+          </button>
+        `;
 
       return `
-        <button
-          type="button"
-          class="votar-option"
-          data-option="${candidate.name}"
-          ${candidate.missing ? "disabled" : ""}
-        >
+        <div class="votar-option" data-option="${candidate.name}">
           ${thumb}
           <p class="votar-option__title">${title}</p>
-        </button>
+          ${
+            candidate.missing
+              ? ""
+              : `<button type="button" class="votar-option__select" data-select="${candidate.name}">Selecionar</button>`
+          }
+        </div>
       `;
     })
     .join("");
 
-  votarOptions.querySelectorAll("[data-option]").forEach((button) => {
-    button.addEventListener("click", () => {
-      selectedName = button.dataset.option;
-      votarOptions.querySelectorAll(".votar-option").forEach((option) => {
-        option.classList.toggle("votar-option--selected", option === button);
-      });
-      votarSubmit.disabled = false;
-    });
-  });
-
   votarSubmit.hidden = false;
   votarSubmit.disabled = true;
+}
+
+function handleOptionsClick(event) {
+  const preview = event.target.closest("[data-preview]");
+  if (preview) {
+    openLightbox(preview.dataset.preview, preview.dataset.title);
+    return;
+  }
+
+  const selectButton = event.target.closest("[data-select]");
+  if (selectButton) {
+    selectedName = selectButton.dataset.select;
+    votarOptions.querySelectorAll(".votar-option").forEach((option) => {
+      option.classList.toggle("votar-option--selected", option.dataset.option === selectedName);
+    });
+    votarSubmit.disabled = false;
+  }
 }
 
 async function submitVote() {
@@ -135,7 +211,7 @@ async function loadPoll() {
       return;
     }
 
-    votarMessage.textContent = "Escolha uma das opcoes abaixo e clique em Votar.";
+    votarMessage.textContent = "Toque na imagem para ampliar. Escolha uma opcao e clique em Votar.";
     renderVotingOptions(poll);
   } catch (error) {
     votarQuestion.textContent = "Erro";
@@ -143,6 +219,29 @@ async function loadPoll() {
   }
 }
 
+votarOptions.addEventListener("click", handleOptionsClick);
 votarSubmit.addEventListener("click", submitVote);
+
+lightboxClose.addEventListener("click", closeLightbox);
+lightboxImage.addEventListener("click", (event) => {
+  event.stopPropagation();
+  lightboxZoomIndex = (lightboxZoomIndex + 1) % lightboxZoomLevels.length;
+  applyLightboxZoom();
+});
+lightbox.addEventListener("click", (event) => {
+  if (event.target === lightbox) {
+    closeLightbox();
+  }
+});
+window.addEventListener("resize", () => {
+  if (!lightbox.hidden) {
+    applyLightboxZoom();
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !lightbox.hidden) {
+    closeLightbox();
+  }
+});
 
 loadPoll();
