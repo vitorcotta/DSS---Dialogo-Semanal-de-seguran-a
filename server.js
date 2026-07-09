@@ -290,8 +290,24 @@ app.post("/api/admin/toggle", requireApiAuth, async (req, res) => {
     return res.status(404).json({ message: "Cartaz nao encontrado." });
   }
 
+  // Garante que todo cartaz ja tenha uma ordem persistida antes de mexer no estado.
+  await listPosters();
+
   const state = loadState();
-  state[name] = { ...state[name], enabled: Boolean(enabled) };
+  const wasEnabled = state[name] ? state[name].enabled !== false : false;
+  const nextEnabled = Boolean(enabled);
+
+  if (nextEnabled && !wasEnabled) {
+    // Ao habilitar um cartaz, ele deve entrar como o primeiro da galeria publica.
+    const enabledOrders = Object.entries(state)
+      .filter(([fileName, entry]) => fileName !== name && entry.enabled !== false && typeof entry.order === "number")
+      .map(([, entry]) => entry.order);
+    const minOrder = enabledOrders.length ? Math.min(...enabledOrders) : 0;
+    state[name] = { ...state[name], enabled: true, order: minOrder - 1 };
+  } else {
+    state[name] = { ...state[name], enabled: nextEnabled };
+  }
+
   saveState(state);
 
   const posters = (await listPosters({ forAdmin: true })).map(toClientPoster);

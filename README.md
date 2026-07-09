@@ -25,7 +25,37 @@ galeria) para entrar no painel.
   (veja `docker-compose.yml`). **Troque os valores padrao antes de publicar em producao.**
 - Cartazes enviados pelo painel entram **desabilitados** por padrao — ficam guardados e so
   aparecem na galeria principal quando voce marcar "Habilitado" na semana de uso.
-- O estado de habilitado/desabilitado de cada cartaz e persistido em `data/state.json`.
+- Ao habilitar um cartaz, ele entra automaticamente como o **primeiro** da galeria (topo da
+  lista). Use as setas ▲▼ no painel para reordenar manualmente depois, se quiser.
+- No painel, cartazes desabilitados sempre aparecem primeiro na lista, para facilitar a
+  organizacao dos que ainda estao "na fila".
+- O estado de habilitado/desabilitado e a ordem de cada cartaz sao persistidos em
+  `data/state.json`.
+
+---
+
+## Imagens nao ficam versionadas no Git
+
+A pasta `imagens/` esta no `.gitignore` (exceto por um `.gitkeep` que mantem a pasta no
+repositorio). Isso evita que cada upload/renomeacao feita pelo painel gere commits enormes de
+binarios. Os cartazes passam a ser gerenciados **apenas pelo painel administrativo** e ficam
+guardados diretamente no disco do servidor (e no volume Docker `./imagens`).
+
+**Atencao ao atualizar um servidor que ja tinha as imagens versionadas:** apos o commit que
+remove `imagens/` do controle de versao, um `git pull` comum tentaria apagar do disco os
+arquivos que deixaram de ser rastreados. Para evitar isso, no servidor, **antes** de rodar
+`git pull` pela primeira vez apos essa mudanca:
+
+```bash
+cd /opt/dss-cartazes
+git rm -r --cached imagens   # remove do indice do git, mantem os arquivos no disco
+git commit -m "Parar de versionar imagens (mantidas no disco)"
+git pull
+```
+
+Assim o servidor "esquece" as imagens no git antes de puxar a mudanca remota, e o `git pull`
+nao encontra motivo para apagar nada — os arquivos continuam no disco, agora ignorados pelo
+Git e gerenciados só pelo painel.
 
 ---
 
