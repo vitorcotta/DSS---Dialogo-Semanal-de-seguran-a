@@ -48,7 +48,7 @@ function closeLightbox() {
   document.body.style.overflow = "";
 }
 
-function renderRow(poster, { isFirstInGroup, isLastInGroup }) {
+function renderRow(poster, { isFirstInGroup, isLastInGroup, positionLabel }) {
   const title = sanitizeTitle(poster.name);
   const isRenaming = renamingName === poster.name;
 
@@ -91,6 +91,7 @@ function renderRow(poster, { isFirstInGroup, isLastInGroup }) {
           ${isLastInGroup ? "disabled" : ""}
         >&#9660;</button>
       </div>
+      ${positionLabel !== null ? `<span class="admin-row__position" title="Posicao na galeria (1 = ultimo)">${positionLabel}</span>` : ""}
       <img
         class="admin-row__thumb"
         src="${poster.src}"
@@ -122,12 +123,22 @@ function renderPosters(posters) {
 
   const disabledRows = disabled
     .map((poster, index) =>
-      renderRow(poster, { isFirstInGroup: index === 0, isLastInGroup: index === disabled.length - 1 })
+      renderRow(poster, {
+        isFirstInGroup: index === 0,
+        isLastInGroup: index === disabled.length - 1,
+        positionLabel: null
+      })
     )
     .join("");
+  // Numeracao pensada para bater com a antiga convencao de nome de arquivo:
+  // o primeiro da galeria (topo) recebe o maior numero, o ultimo recebe 1.
   const enabledRows = enabled
     .map((poster, index) =>
-      renderRow(poster, { isFirstInGroup: index === 0, isLastInGroup: index === enabled.length - 1 })
+      renderRow(poster, {
+        isFirstInGroup: index === 0,
+        isLastInGroup: index === enabled.length - 1,
+        positionLabel: enabled.length - index
+      })
     )
     .join("");
 

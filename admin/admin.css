@@ -134,6 +134,21 @@
   border-color: var(--primary);
 }
 
+.admin-row__position {
+  flex: none;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #0e1b2c;
+  border: 1px solid var(--card-border);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
 .admin-reorder-btn:disabled {
   opacity: 0.3;
   cursor: default;
