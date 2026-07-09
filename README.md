@@ -34,6 +34,31 @@ galeria) para entrar no painel.
 
 ---
 
+## Votacao para o proximo assunto
+
+No painel, marque o checkbox "Votacao" de 2 a 4 cartazes **desabilitados** e clique em "Criar
+votacao". Isso gera um link (`/votar/<id>`) que pode ser compartilhado com qualquer pessoa —
+não é preciso login para votar.
+
+- Enquanto a votacao esta **aberta**, os numeros de votos ficam escondidos (inclusive do
+  admin), para nao influenciar quem ainda vai votar. Cada pessoa so ve se ja votou ou nao.
+- O controle de "ja votou" e feito por um cookie no navegador — evita voto duplicado por
+  engano (recarregar a pagina, clicar duas vezes), mas nao impede alguem de votar de novo
+  usando outro navegador ou aba anonima. Suficiente para uso interno, nao e a prova de fraude.
+- O admin encerra a votacao manualmente pelo botao "Encerrar votacao". So entao o resultado
+  (votos por opcao) fica visivel.
+- Com a votacao encerrada, aparece um botao **"Habilitar <cartaz vencedor>"** que publica o
+  cartaz vencedor na galeria (mesmo comportamento de habilitar manualmente: ele vai para o
+  topo da lista).
+- Em caso de empate, o botao de habilitar fica desativado — habilite manualmente pela lista
+  normal de cartazes.
+- Se um cartaz candidato for renomeado ou excluido depois da votacao criada, ele aparece como
+  "removido" na votacao (sem quebrar nada), mas nao pode mais ser habilitado automaticamente.
+- Dados das votacoes ficam em `data/polls.json` (mesmo tratamento de `data/state.json`: nao
+  versionado no Git).
+
+---
+
 ## Imagens nao ficam versionadas no Git
 
 A pasta `imagens/` esta no `.gitignore` (exceto por um `.gitkeep` que mantem a pasta no

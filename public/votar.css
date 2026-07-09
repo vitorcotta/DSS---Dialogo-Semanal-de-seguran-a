@@ -1,0 +1,124 @@
+.votar-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.votar-card {
+  width: 100%;
+  max-width: 640px;
+  background: linear-gradient(180deg, #132236 0%, #101d2f 100%);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 1.75rem;
+  box-shadow: 0 20px 45px rgba(3, 8, 16, 0.5);
+}
+
+.votar-card h1 {
+  margin: 0.4rem 0 0.5rem;
+  font-size: 1.5rem;
+}
+
+.votar-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.votar-option {
+  border: 2px solid var(--card-border);
+  border-radius: 12px;
+  background: #0e1b2c;
+  padding: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  text-align: center;
+  color: var(--text);
+}
+
+.votar-option:hover {
+  border-color: var(--primary);
+}
+
+.votar-option--selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(243, 178, 52, 0.3);
+}
+
+.votar-option img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #2c4663;
+  display: block;
+}
+
+.votar-option__title {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.votar-option__result {
+  margin-top: 0.3rem;
+}
+
+.votar-option__bar-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #17293f;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+}
+
+.votar-option__bar {
+  height: 100%;
+  background: var(--primary);
+}
+
+.votar-option__bar--winner {
+  background: var(--accent);
+}
+
+.votar-option__votes {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+
+#votarSubmit {
+  border: 1px solid #3f6e98;
+  color: var(--text);
+  background: var(--primary);
+  border-radius: 8px;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+#votarSubmit:hover:not(:disabled) {
+  background: #2380bd;
+}
+
+#votarSubmit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.votar-back {
+  display: inline-block;
+  margin-top: 1.25rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.votar-back:hover {
+  color: var(--text);
+}

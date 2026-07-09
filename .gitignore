@@ -1,5 +1,6 @@
 node_modules/
 .DS_Store
 data/state.json
+data/polls.json
 imagens/*
 !imagens/.gitkeep

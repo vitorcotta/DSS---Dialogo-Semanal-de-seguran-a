@@ -11,7 +11,9 @@ const port = process.env.PORT || 8050;
 const imagesDirectory = path.join(__dirname, "imagens");
 const dataDirectory = path.join(__dirname, "data");
 const stateFile = path.join(dataDirectory, "state.json");
+const pollsFile = path.join(dataDirectory, "polls.json");
 const allowedExtensions = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
+const VOTER_COOKIE_NAME = "dss_voter";
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "dss@admin";
@@ -40,6 +42,119 @@ function loadState() {
 function saveState(state) {
   fs.mkdirSync(dataDirectory, { recursive: true });
   fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+}
+
+function loadPolls() {
+  try {
+    return JSON.parse(fs.readFileSync(pollsFile, "utf-8"));
+  } catch (error) {
+    return {};
+  }
+}
+
+function savePolls(polls) {
+  fs.mkdirSync(dataDirectory, { recursive: true });
+  fs.writeFileSync(pollsFile, JSON.stringify(polls, null, 2));
+}
+
+// Cookie simples e proprio para identificar o navegador de quem vota, sem
+// depender do express-session (que e voltado para a sessao do admin) nem de
+// uma dependencia extra so para ler um cookie.
+function parseCookies(req) {
+  const header = req.headers.cookie;
+  const cookies = {};
+  if (!header) {
+    return cookies;
+  }
+  header.split(";").forEach((pair) => {
+    const separatorIndex = pair.indexOf("=");
+    if (separatorIndex === -1) {
+      return;
+    }
+    const key = pair.slice(0, separatorIndex).trim();
+    const value = pair.slice(separatorIndex + 1).trim();
+    if (key) {
+      cookies[key] = decodeURIComponent(value);
+    }
+  });
+  return cookies;
+}
+
+function getVoterSecret(req, res) {
+  const cookies = parseCookies(req);
+  if (cookies[VOTER_COOKIE_NAME]) {
+    return cookies[VOTER_COOKIE_NAME];
+  }
+
+  const secret = crypto.randomBytes(16).toString("hex");
+  const maxAgeSeconds = 60 * 60 * 24 * 365;
+  res.setHeader(
+    "Set-Cookie",
+    `${VOTER_COOKIE_NAME}=${secret}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax`
+  );
+  return secret;
+}
+
+function hashVote(voterSecret, pollId) {
+  return crypto.createHash("sha256").update(`${voterSecret}:${pollId}`).digest("hex");
+}
+
+async function resolvePollCandidates(candidateNames) {
+  const posters = await listPosters({ forAdmin: true });
+  const byName = new Map(posters.map((poster) => [poster.name, poster]));
+
+  return candidateNames.map((name) => {
+    const poster = byName.get(name);
+    if (!poster) {
+      return { name, src: null, missing: true, enabled: false };
+    }
+    return { name, src: poster.src, missing: false, enabled: poster.enabled };
+  });
+}
+
+function computePollWinner(poll) {
+  const entries = Object.entries(poll.votes);
+  const maxVotes = Math.max(...entries.map(([, count]) => count));
+
+  if (maxVotes === 0) {
+    return { winner: null };
+  }
+
+  const top = entries.filter(([, count]) => count === maxVotes).map(([name]) => name);
+  if (top.length > 1) {
+    return { winner: null, tied: top };
+  }
+
+  return { winner: top[0] };
+}
+
+async function buildPollView(poll, req, voterSecretOverride) {
+  const candidates = await resolvePollCandidates(poll.candidates);
+  const voterSecret = voterSecretOverride || parseCookies(req)[VOTER_COOKIE_NAME];
+  const hasVoted = Boolean(voterSecret) && poll.voterHashes.includes(hashVote(voterSecret, poll.id));
+
+  const view = {
+    id: poll.id,
+    question: poll.question,
+    status: poll.status,
+    candidates,
+    hasVoted,
+    createdAt: poll.createdAt,
+    closedAt: poll.closedAt
+  };
+
+  // Enquanto a votacao esta aberta, os numeros ficam escondidos (mesmo do
+  // admin) para nao influenciar quem ainda vai votar.
+  if (poll.status === "closed") {
+    const { winner, tied } = computePollWinner(poll);
+    view.votes = poll.votes;
+    view.winner = winner;
+    if (tied) {
+      view.tied = tied;
+    }
+  }
+
+  return view;
 }
 
 function legacyCompare(a, b) {
@@ -237,6 +352,55 @@ app.get("/api/cartazes", async (_req, res) => {
   }
 });
 
+// --- Votacoes (publico) ---
+
+app.get("/votar/:id", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "votar.html"));
+});
+
+app.get("/api/polls/:id", async (req, res) => {
+  const polls = loadPolls();
+  const poll = polls[req.params.id];
+
+  if (!poll) {
+    return res.status(404).json({ message: "Votacao nao encontrada." });
+  }
+
+  const view = await buildPollView(poll, req);
+  res.json(view);
+});
+
+app.post("/api/polls/:id/vote", async (req, res) => {
+  const polls = loadPolls();
+  const poll = polls[req.params.id];
+
+  if (!poll) {
+    return res.status(404).json({ message: "Votacao nao encontrada." });
+  }
+  if (poll.status !== "open") {
+    return res.status(409).json({ message: "Esta votacao ja foi encerrada." });
+  }
+
+  const { name } = req.body || {};
+  if (typeof name !== "string" || !poll.candidates.includes(name)) {
+    return res.status(400).json({ message: "Opcao invalida." });
+  }
+
+  const voterSecret = getVoterSecret(req, res);
+  const voteHash = hashVote(voterSecret, poll.id);
+
+  if (poll.voterHashes.includes(voteHash)) {
+    return res.status(409).json({ message: "Voce ja votou nesta votacao." });
+  }
+
+  poll.votes[name] = (poll.votes[name] || 0) + 1;
+  poll.voterHashes.push(voteHash);
+  savePolls(polls);
+
+  const view = await buildPollView(poll, req, voterSecret);
+  res.json(view);
+});
+
 // --- Painel administrativo ---
 
 app.get("/admin", requirePageAuth, (_req, res) => {
@@ -427,6 +591,101 @@ app.delete("/api/admin/cartazes/:name", requireApiAuth, async (req, res) => {
 
   const posters = (await listPosters({ forAdmin: true })).map(toClientPoster);
   res.json({ total: posters.length, posters });
+});
+
+// --- Votacoes (admin) ---
+
+app.get("/api/admin/polls", requireApiAuth, async (req, res) => {
+  const polls = Object.values(loadPolls()).sort((a, b) => {
+    if (a.status !== b.status) {
+      return a.status === "open" ? -1 : 1;
+    }
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  const views = await Promise.all(polls.map((poll) => buildPollView(poll, req)));
+  res.json({ total: views.length, polls: views });
+});
+
+app.post("/api/admin/polls", requireApiAuth, async (req, res) => {
+  const { question, candidates } = req.body || {};
+
+  if (!Array.isArray(candidates)) {
+    return res.status(400).json({ message: "Selecione entre 2 e 4 cartazes." });
+  }
+
+  const uniqueCandidates = [...new Set(candidates)];
+  if (uniqueCandidates.length < 2 || uniqueCandidates.length > 4) {
+    return res.status(400).json({ message: "Selecione entre 2 e 4 cartazes." });
+  }
+  if (uniqueCandidates.some((name) => typeof name !== "string" || path.basename(name) !== name)) {
+    return res.status(400).json({ message: "Nome de arquivo invalido." });
+  }
+
+  const posters = await listPosters({ forAdmin: true });
+  const postersByName = new Map(posters.map((poster) => [poster.name, poster]));
+
+  for (const name of uniqueCandidates) {
+    const poster = postersByName.get(name);
+    if (!poster) {
+      return res.status(404).json({ message: `Cartaz nao encontrado: ${name}` });
+    }
+    if (poster.enabled) {
+      return res.status(400).json({ message: `Apenas cartazes desabilitados podem entrar na votacao: ${name}` });
+    }
+  }
+
+  const polls = loadPolls();
+  const id = crypto.randomBytes(20).toString("hex");
+  const votes = {};
+  uniqueCandidates.forEach((name) => {
+    votes[name] = 0;
+  });
+
+  polls[id] = {
+    id,
+    question: typeof question === "string" && question.trim() ? question.trim() : "Qual sera o proximo assunto?",
+    candidates: uniqueCandidates,
+    votes,
+    voterHashes: [],
+    status: "open",
+    createdAt: new Date().toISOString(),
+    closedAt: null
+  };
+  savePolls(polls);
+
+  const view = await buildPollView(polls[id], req);
+  res.status(201).json(view);
+});
+
+app.post("/api/admin/polls/:id/close", requireApiAuth, async (req, res) => {
+  const polls = loadPolls();
+  const poll = polls[req.params.id];
+
+  if (!poll) {
+    return res.status(404).json({ message: "Votacao nao encontrada." });
+  }
+
+  if (poll.status !== "closed") {
+    poll.status = "closed";
+    poll.closedAt = new Date().toISOString();
+    savePolls(polls);
+  }
+
+  const view = await buildPollView(poll, req);
+  res.json(view);
+});
+
+app.delete("/api/admin/polls/:id", requireApiAuth, (req, res) => {
+  const polls = loadPolls();
+
+  if (!polls[req.params.id]) {
+    return res.status(404).json({ message: "Votacao nao encontrada." });
+  }
+
+  delete polls[req.params.id];
+  savePolls(polls);
+  res.json({ ok: true });
 });
 
 app.listen(port, () => {

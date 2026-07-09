@@ -41,6 +41,22 @@
       </section>
 
       <section id="adminGallery" class="admin-list" aria-live="polite"></section>
+
+      <section class="toolbar">
+        <h2>Votacoes</h2>
+        <button id="refreshPollsButton" type="button">Atualizar votacoes</button>
+      </section>
+      <p class="hero__subtitle">
+        Selecione de 2 a 4 cartazes <strong>desabilitados</strong> na lista acima (checkbox ao
+        lado do nome) e clique em "Criar votacao" para gerar um link de votacao.
+      </p>
+      <div id="pollCreateBar" class="poll-select-bar" hidden>
+        <span id="pollSelectedCount">0 selecionados</span>
+        <button id="pollCreateButton" type="button" disabled>Criar votacao</button>
+      </div>
+      <p id="pollCreateStatus" class="admin-status"></p>
+
+      <section id="pollList" class="admin-polls" aria-live="polite"></section>
     </main>
 
     <footer class="footer">
