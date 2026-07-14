@@ -422,10 +422,14 @@ function renderPollCard(poll) {
         `;
       }
 
+      const isWinner = poll.status === "closed" && poll.winner === candidate.name;
+
       return `
         <div class="poll-card__candidate">
           ${thumb}
-          <p class="poll-card__candidate-title">${escapeHtml(title)}</p>
+          <p class="poll-card__candidate-title ${isWinner ? "poll-card__candidate-title--winner" : ""}">
+            ${isWinner ? "🏆 " : ""}${escapeHtml(title)}
+          </p>
           ${barHtml}
         </div>
       `;
@@ -484,9 +488,16 @@ function renderActivePollSummary(poll) {
   const candidatesHtml = poll.candidates
     .map((candidate) => {
       const title = candidate.missing ? "Cartaz removido/renomeado" : sanitizeTitle(candidate.name);
-      return candidate.missing
+      const thumb = candidate.missing
         ? `<div class="poll-card__thumb poll-card__thumb--missing" title="${escapeHtml(title)}"></div>`
-        : `<img class="poll-card__thumb" src="${candidate.src}" alt="Cartaz DSS: ${escapeHtml(title)}" loading="lazy" title="${escapeHtml(title)}" />`;
+        : `<img class="poll-card__thumb" src="${candidate.src}" alt="Cartaz DSS: ${escapeHtml(title)}" loading="lazy" />`;
+
+      return `
+        <div class="active-poll__candidate">
+          ${thumb}
+          <p class="active-poll__candidate-title">${escapeHtml(title)}</p>
+        </div>
+      `;
     })
     .join("");
 
@@ -502,6 +513,9 @@ function renderActivePollSummary(poll) {
           <span class="active-poll__count-label">voto${totalVotes === 1 ? "" : "s"} ate agora</span>
         </div>
       </div>
+      <p class="active-poll__hint">Concorrendo: ${poll.candidates
+        .map((candidate) => escapeHtml(candidate.missing ? "Cartaz removido" : sanitizeTitle(candidate.name)))
+        .join(" • ")}</p>
       <div class="active-poll__candidates">${candidatesHtml}</div>
       <div class="active-poll__link-row">
         <input type="text" class="poll-card__link" value="${escapeHtml(link)}" readonly />
