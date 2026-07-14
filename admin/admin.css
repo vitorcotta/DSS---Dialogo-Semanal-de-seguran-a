@@ -5,6 +5,83 @@
   gap: 1rem;
 }
 
+.active-poll-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.active-poll {
+  background: linear-gradient(180deg, #1c3350 0%, #142942 100%);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 12px 28px rgba(3, 8, 16, 0.4);
+}
+
+.active-poll__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.active-poll__label {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.active-poll__question {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.active-poll__count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 4.5rem;
+}
+
+.active-poll__count-number {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.active-poll__count-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.active-poll__candidates {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0.9rem 0;
+  flex-wrap: wrap;
+}
+
+.active-poll__candidates .poll-card__thumb {
+  width: 64px;
+  height: 64px;
+}
+
+.active-poll__link-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .admin-logout {
   border: 1px solid #4c7399;
   color: var(--text);
@@ -506,6 +583,12 @@
 
 .poll-card__votes {
   font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.poll-card__total-votes {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 

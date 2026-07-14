@@ -128,7 +128,7 @@ function computePollWinner(poll) {
   return { winner: top[0] };
 }
 
-async function buildPollView(poll, req, voterSecretOverride) {
+async function buildPollView(poll, req, { voterSecretOverride, includeTotalWhileOpen = false } = {}) {
   const candidates = await resolvePollCandidates(poll.candidates);
   const voterSecret = voterSecretOverride || parseCookies(req)[VOTER_COOKIE_NAME];
   const hasVoted = Boolean(voterSecret) && poll.voterHashes.includes(hashVote(voterSecret, poll.id));
@@ -143,8 +143,9 @@ async function buildPollView(poll, req, voterSecretOverride) {
     closedAt: poll.closedAt
   };
 
-  // Enquanto a votacao esta aberta, os numeros ficam escondidos (mesmo do
-  // admin) para nao influenciar quem ainda vai votar.
+  // Enquanto a votacao esta aberta, a quebra de votos por opcao fica escondida
+  // (mesmo do admin) para nao influenciar quem ainda vai votar. O admin pode,
+  // opcionalmente, acompanhar apenas o total agregado de votos ja recebidos.
   if (poll.status === "closed") {
     const { winner, tied } = computePollWinner(poll);
     view.votes = poll.votes;
@@ -152,6 +153,8 @@ async function buildPollView(poll, req, voterSecretOverride) {
     if (tied) {
       view.tied = tied;
     }
+  } else if (includeTotalWhileOpen) {
+    view.totalVotes = Object.values(poll.votes).reduce((sum, count) => sum + count, 0);
   }
 
   return view;
@@ -397,7 +400,7 @@ app.post("/api/polls/:id/vote", async (req, res) => {
   poll.voterHashes.push(voteHash);
   savePolls(polls);
 
-  const view = await buildPollView(poll, req, voterSecret);
+  const view = await buildPollView(poll, req, { voterSecretOverride: voterSecret });
   res.json(view);
 });
 
@@ -603,7 +606,9 @@ app.get("/api/admin/polls", requireApiAuth, async (req, res) => {
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
-  const views = await Promise.all(polls.map((poll) => buildPollView(poll, req)));
+  const views = await Promise.all(
+    polls.map((poll) => buildPollView(poll, req, { includeTotalWhileOpen: true }))
+  );
   res.json({ total: views.length, polls: views });
 });
 
@@ -654,7 +659,7 @@ app.post("/api/admin/polls", requireApiAuth, async (req, res) => {
   };
   savePolls(polls);
 
-  const view = await buildPollView(polls[id], req);
+  const view = await buildPollView(polls[id], req, { includeTotalWhileOpen: true });
   res.status(201).json(view);
 });
 
@@ -672,7 +677,7 @@ app.post("/api/admin/polls/:id/close", requireApiAuth, async (req, res) => {
     savePolls(polls);
   }
 
-  const view = await buildPollView(poll, req);
+  const view = await buildPollView(poll, req, { includeTotalWhileOpen: true });
   res.json(view);
 });
 

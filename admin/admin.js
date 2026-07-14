@@ -17,6 +17,9 @@ const pollCreateBar = document.getElementById("pollCreateBar");
 const pollSelectedCount = document.getElementById("pollSelectedCount");
 const pollCreateButton = document.getElementById("pollCreateButton");
 const pollCreateStatus = document.getElementById("pollCreateStatus");
+const activePollPanel = document.getElementById("activePollPanel");
+
+const POLL_AUTO_REFRESH_MS = 8000;
 
 let renamingName = null;
 const selectedCandidates = new Set();
@@ -431,7 +434,11 @@ function renderPollCard(poll) {
 
   let actionHtml = "";
   if (poll.status === "open") {
-    actionHtml = `<button type="button" class="poll-card__close" data-close-poll="${poll.id}">Encerrar votacao</button>`;
+    const totalVotes = poll.totalVotes || 0;
+    actionHtml = `
+      <p class="poll-card__total-votes">${totalVotes} voto${totalVotes === 1 ? "" : "s"} registrado${totalVotes === 1 ? "" : "s"} ate agora</p>
+      <button type="button" class="poll-card__close" data-close-poll="${poll.id}">Encerrar votacao</button>
+    `;
   } else if (poll.tied) {
     actionHtml = `<p class="poll-card__tie">Empate — habilite manualmente na lista acima.</p>`;
   } else if (poll.winner) {
@@ -470,7 +477,55 @@ function renderPollCard(poll) {
   `;
 }
 
+function renderActivePollSummary(poll) {
+  const link = `${window.location.origin}/votar/${poll.id}`;
+  const totalVotes = poll.totalVotes || 0;
+
+  const candidatesHtml = poll.candidates
+    .map((candidate) => {
+      const title = candidate.missing ? "Cartaz removido/renomeado" : sanitizeTitle(candidate.name);
+      return candidate.missing
+        ? `<div class="poll-card__thumb poll-card__thumb--missing" title="${escapeHtml(title)}"></div>`
+        : `<img class="poll-card__thumb" src="${candidate.src}" alt="Cartaz DSS: ${escapeHtml(title)}" loading="lazy" title="${escapeHtml(title)}" />`;
+    })
+    .join("");
+
+  return `
+    <article class="active-poll">
+      <div class="active-poll__header">
+        <div>
+          <p class="active-poll__label">Votacao em andamento</p>
+          <p class="active-poll__question">${escapeHtml(poll.question)}</p>
+        </div>
+        <div class="active-poll__count">
+          <span class="active-poll__count-number">${totalVotes}</span>
+          <span class="active-poll__count-label">voto${totalVotes === 1 ? "" : "s"} ate agora</span>
+        </div>
+      </div>
+      <div class="active-poll__candidates">${candidatesHtml}</div>
+      <div class="active-poll__link-row">
+        <input type="text" class="poll-card__link" value="${escapeHtml(link)}" readonly />
+        <button type="button" class="poll-card__copy" data-copy-link="${escapeHtml(link)}">Copiar link</button>
+        <button type="button" class="poll-card__close" data-close-poll="${poll.id}">Encerrar votacao</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderActivePollPanel(polls) {
+  const openPolls = polls.filter((poll) => poll.status === "open");
+  if (!openPolls.length) {
+    activePollPanel.hidden = true;
+    activePollPanel.innerHTML = "";
+    return;
+  }
+  activePollPanel.hidden = false;
+  activePollPanel.innerHTML = openPolls.map(renderActivePollSummary).join("");
+}
+
 function renderPolls(polls) {
+  renderActivePollPanel(polls);
+
   if (!polls.length) {
     pollList.innerHTML = '<div class="message">Nenhuma votacao criada ainda.</div>';
     return;
@@ -676,6 +731,7 @@ logoutButton.addEventListener("click", async () => {
 refreshPollsButton.addEventListener("click", loadPolls);
 pollCreateButton.addEventListener("click", handleCreatePoll);
 pollList.addEventListener("click", handlePollListClick);
+activePollPanel.addEventListener("click", handlePollListClick);
 
 lightboxClose.addEventListener("click", closeLightbox);
 lightbox.addEventListener("click", (event) => {
@@ -691,3 +747,4 @@ document.addEventListener("keydown", (event) => {
 
 loadPosters();
 loadPolls();
+setInterval(loadPolls, POLL_AUTO_REFRESH_MS);
