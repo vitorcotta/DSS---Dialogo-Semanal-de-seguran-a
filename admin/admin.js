@@ -408,27 +408,34 @@ function renderPollCard(poll) {
         ? `<div class="poll-card__thumb poll-card__thumb--missing" title="${escapeHtml(title)}"></div>`
         : `<img class="poll-card__thumb" src="${candidate.src}" alt="Cartaz DSS: ${escapeHtml(title)}" loading="lazy" />`;
 
+      const isWinner = poll.status === "closed" && poll.winner === candidate.name;
+      const isLeading = poll.status === "open" && poll.winner === candidate.name;
+
       let barHtml = "";
-      if (poll.status === "closed") {
+      if (poll.votes) {
         const totalVotes = Object.values(poll.votes).reduce((sum, count) => sum + count, 0);
         const count = poll.votes[candidate.name] || 0;
         const pct = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
-        const isWinner = poll.winner === candidate.name;
         barHtml = `
           <div class="poll-card__bar-track">
-            <div class="poll-card__bar ${isWinner ? "poll-card__bar--winner" : ""}" style="width:${pct}%"></div>
+            <div class="poll-card__bar ${isWinner || isLeading ? "poll-card__bar--winner" : ""}" style="width:${pct}%"></div>
           </div>
           <span class="poll-card__votes">${count} voto${count === 1 ? "" : "s"} (${pct}%)</span>
         `;
       }
 
-      const isWinner = poll.status === "closed" && poll.winner === candidate.name;
+      let badge = "";
+      if (isWinner) {
+        badge = "🏆 ";
+      } else if (isLeading) {
+        badge = "🔥 ";
+      }
 
       return `
         <div class="poll-card__candidate">
           ${thumb}
           <p class="poll-card__candidate-title ${isWinner ? "poll-card__candidate-title--winner" : ""}">
-            ${isWinner ? "🏆 " : ""}${escapeHtml(title)}
+            ${badge}${escapeHtml(title)}
           </p>
           ${barHtml}
         </div>
@@ -438,11 +445,7 @@ function renderPollCard(poll) {
 
   let actionHtml = "";
   if (poll.status === "open") {
-    const totalVotes = poll.totalVotes || 0;
-    actionHtml = `
-      <p class="poll-card__total-votes">${totalVotes} voto${totalVotes === 1 ? "" : "s"} registrado${totalVotes === 1 ? "" : "s"} ate agora</p>
-      <button type="button" class="poll-card__close" data-close-poll="${poll.id}">Encerrar votacao</button>
-    `;
+    actionHtml = `<button type="button" class="poll-card__close" data-close-poll="${poll.id}">Encerrar votacao</button>`;
   } else if (poll.tied) {
     actionHtml = `<p class="poll-card__tie">Empate — habilite manualmente na lista acima.</p>`;
   } else if (poll.winner) {
@@ -483,7 +486,8 @@ function renderPollCard(poll) {
 
 function renderActivePollSummary(poll) {
   const link = `${window.location.origin}/votar/${poll.id}`;
-  const totalVotes = poll.totalVotes || 0;
+  const votes = poll.votes || {};
+  const totalVotes = Object.values(votes).reduce((sum, count) => sum + count, 0);
 
   const candidatesHtml = poll.candidates
     .map((candidate) => {
@@ -492,10 +496,18 @@ function renderActivePollSummary(poll) {
         ? `<div class="poll-card__thumb poll-card__thumb--missing" title="${escapeHtml(title)}"></div>`
         : `<img class="poll-card__thumb" src="${candidate.src}" alt="Cartaz DSS: ${escapeHtml(title)}" loading="lazy" />`;
 
+      const count = votes[candidate.name] || 0;
+      const pct = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
+      const isLeading = poll.winner === candidate.name;
+
       return `
         <div class="active-poll__candidate">
           ${thumb}
-          <p class="active-poll__candidate-title">${escapeHtml(title)}</p>
+          <p class="active-poll__candidate-title">${isLeading ? "🔥 " : ""}${escapeHtml(title)}</p>
+          <div class="poll-card__bar-track">
+            <div class="poll-card__bar ${isLeading ? "poll-card__bar--winner" : ""}" style="width:${pct}%"></div>
+          </div>
+          <span class="poll-card__votes">${count} voto${count === 1 ? "" : "s"} (${pct}%)</span>
         </div>
       `;
     })
@@ -513,9 +525,6 @@ function renderActivePollSummary(poll) {
           <span class="active-poll__count-label">voto${totalVotes === 1 ? "" : "s"} ate agora</span>
         </div>
       </div>
-      <p class="active-poll__hint">Concorrendo: ${poll.candidates
-        .map((candidate) => escapeHtml(candidate.missing ? "Cartaz removido" : sanitizeTitle(candidate.name)))
-        .join(" • ")}</p>
       <div class="active-poll__candidates">${candidatesHtml}</div>
       <div class="active-poll__link-row">
         <input type="text" class="poll-card__link" value="${escapeHtml(link)}" readonly />

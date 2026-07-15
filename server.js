@@ -128,7 +128,7 @@ function computePollWinner(poll) {
   return { winner: top[0] };
 }
 
-async function buildPollView(poll, req, { voterSecretOverride, includeTotalWhileOpen = false } = {}) {
+async function buildPollView(poll, req, { voterSecretOverride, includeBreakdownWhileOpen = false } = {}) {
   const candidates = await resolvePollCandidates(poll.candidates);
   const voterSecret = voterSecretOverride || parseCookies(req)[VOTER_COOKIE_NAME];
   const hasVoted = Boolean(voterSecret) && poll.voterHashes.includes(hashVote(voterSecret, poll.id));
@@ -143,18 +143,16 @@ async function buildPollView(poll, req, { voterSecretOverride, includeTotalWhile
     closedAt: poll.closedAt
   };
 
-  // Enquanto a votacao esta aberta, a quebra de votos por opcao fica escondida
-  // (mesmo do admin) para nao influenciar quem ainda vai votar. O admin pode,
-  // opcionalmente, acompanhar apenas o total agregado de votos ja recebidos.
-  if (poll.status === "closed") {
+  // Para quem vota (link publico), a quebra de votos por opcao fica escondida
+  // enquanto a votacao esta aberta, para nao influenciar quem ainda vai votar.
+  // O admin, por outro lado, pode acompanhar o placar em tempo real.
+  if (poll.status === "closed" || includeBreakdownWhileOpen) {
     const { winner, tied } = computePollWinner(poll);
     view.votes = poll.votes;
     view.winner = winner;
     if (tied) {
       view.tied = tied;
     }
-  } else if (includeTotalWhileOpen) {
-    view.totalVotes = Object.values(poll.votes).reduce((sum, count) => sum + count, 0);
   }
 
   return view;
@@ -607,7 +605,7 @@ app.get("/api/admin/polls", requireApiAuth, async (req, res) => {
   });
 
   const views = await Promise.all(
-    polls.map((poll) => buildPollView(poll, req, { includeTotalWhileOpen: true }))
+    polls.map((poll) => buildPollView(poll, req, { includeBreakdownWhileOpen: true }))
   );
   res.json({ total: views.length, polls: views });
 });
@@ -659,7 +657,7 @@ app.post("/api/admin/polls", requireApiAuth, async (req, res) => {
   };
   savePolls(polls);
 
-  const view = await buildPollView(polls[id], req, { includeTotalWhileOpen: true });
+  const view = await buildPollView(polls[id], req, { includeBreakdownWhileOpen: true });
   res.status(201).json(view);
 });
 
@@ -677,7 +675,7 @@ app.post("/api/admin/polls/:id/close", requireApiAuth, async (req, res) => {
     savePolls(polls);
   }
 
-  const view = await buildPollView(poll, req, { includeTotalWhileOpen: true });
+  const view = await buildPollView(poll, req, { includeBreakdownWhileOpen: true });
   res.json(view);
 });
 
